@@ -61,7 +61,7 @@ class CartService:
         for product_id, quantity in cart_data.items():
             if product_id in products_dict:
                 product = products_dict[product_id]
-                subtotal = product.ptice * quantity
+                subtotal = product.price * quantity
 
                 cart_item = CartItem(product_id=product.id, name=product.name,
                     price=product.price, quantity=quantity, subtotal=subtotal,
