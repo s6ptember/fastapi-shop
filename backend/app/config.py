@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from typing import List, Union
 
 class Settings(BaseSettings):
     app_name: str = "FastAPI Shop"
