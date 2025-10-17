@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: fashop_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./backend:/app
+      - backend_static:/app/static
+    environment:
+      - APP_NAME=${APP_NAME:-FastAPI Shop}
+      - DEBUG=${DEBUG:-False}
+      - DATABASE_URL=sqlite:///./shop.db
+      - CORS_ORIGINS=https://${DOMAIN},https://www.${DOMAIN}
+    expose:
+      - "8000"
+    restart: unless-stopped
+    networks:
+      - fashop_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=https://${DOMAIN}/api
+    container_name: fashop_frontend
+    depends_on:
+      - backend
+    expose:
+      - "80"
+    restart: unless-stopped
+    networks:
+      - fashop_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: fashop_nginx
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - backend_static:/app/backend/static:ro
+      - ./certbot/www:/var/www/certbot:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+    command: /bin/sh -c "envsubst '$${DOMAIN}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - fashop_network
+
+  certbot:
+    image: certbot/certbot
+    container_name: fashop_certbot
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    restart: unless-stopped
+    networks:
+      - fashop_network
+
+networks:
+  fashop_network:
+    driver: bridge
+
+volumes:
+  backend_static:
